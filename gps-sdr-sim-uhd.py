@@ -60,22 +60,22 @@ class top_block(gr.top_block):
 
 def get_options():
     parser = OptionParser(option_class=eng_option)
-    parser.add_option("-x", "--gain", type="eng_float", default=0,
-                      help="set transmitter gain [default=0]")
+    parser.add_option("-x", "--gain", type="eng_float", default=50,
+                      help="set transmitter gain [default=50]")
     parser.add_option("-f", "--frequency", type="eng_float", default=1575420000,
                       help="set transmit frequency [default=1575420000]")
     # On USRP2, the sample rate should lead to an even decimator
     # based on the 100 MHz clock.  At 2.5 MHz, we end up with 40
-    parser.add_option("-s", "--sample-rate", type="eng_float", default=2500000,
-                      help="set sample rate [default=2500000]")
+    parser.add_option("-s", "--sample-rate", type="eng_float", default=4000000,
+                      help="set sample rate [default=4000000]")
     parser.add_option("-t", "--filename", type="string", default="gpssim.bin",
                       help="set output file name [default=gpssim.bin]")
     parser.add_option("-b", "--bits", type="eng_float", default=16,
                       help="set size of every sample [default=16]")
     parser.add_option("-a", "--args", type="string", default="",
                       help="set UHD arguments [default='']")
-    parser.add_option("-c", "--clock_source", type="string", default="internal",
-                      help="set clock source [default='internal']")
+    parser.add_option("-c", "--clock_source", type="string", default="gpsdo",
+                      help="set clock source [default='gpsdo']")
 
 
     (options, args) = parser.parse_args()
