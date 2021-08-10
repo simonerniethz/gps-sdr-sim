@@ -2139,7 +2139,7 @@ int main(int argc, char *argv[])
     size_t channel = 0;
     uint64_t total_num_samps = 0;
 
-	std::string args;
+	std::string args = "serial=31BADAB";
 	uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
 
 	std::cout << boost::format("Using Device: %s\n") % usrp->get_pp_string();
@@ -2151,6 +2151,8 @@ int main(int argc, char *argv[])
     std::cout << boost::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate() / 1e6)
               << std::endl
               << std::endl;
+
+	usrp->set_tx_gain(20);
 
     std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
     usrp->set_time_now(uhd::time_spec_t(0.0));
@@ -2321,7 +2323,6 @@ int main(int argc, char *argv[])
 
 		}
 
-		fprintf(stderr, "trying to send");
 		useBuffA = !(useBuffA); //Flip buffers
 		// Actual streaming
 		uint64_t num_acc_samps = 0;
@@ -2332,7 +2333,7 @@ int main(int argc, char *argv[])
 		//	size_t samps_to_send = std::min(iq_buff_size - num_acc_samps, buffA.size());
 
 			// send a single packet
-			std::cout << "Generating took: "<< duration_cast<milliseconds>(high_resolution_clock::now() - t1).count() << "ms" << "\n";
+			//std::cout << "Generating took: "<< duration_cast<milliseconds>(high_resolution_clock::now() - t1).count() << "ms" << "\n";
 
 			if (!firstRun) {
 				auto num_tx_samps = fut.get();
@@ -2340,7 +2341,7 @@ int main(int argc, char *argv[])
 				md.start_of_burst = false;
 				md.has_time_spec = true;
 
-				std::cout << boost::format("Sent packet: %u samples") % num_tx_samps << "\n";
+				//std::cout << boost::format("Sent packet: %u samples") % num_tx_samps << "\n";
 
 				md.time_spec += uhd::time_spec_t(0, 0.1);
 
@@ -2357,7 +2358,7 @@ int main(int argc, char *argv[])
 			} else {
 				fut = std::async(&uhd::tx_streamer::send, tx_stream, &buffA.front() + num_acc_samps, iq_buff_size, md, 0.5);
 			}	
-			std::cout << "Sending took: "<< duration_cast<milliseconds>(high_resolution_clock::now() - t1).count() << "ms" << "\n";
+			//std::cout << "Sending took: "<< duration_cast<milliseconds>(high_resolution_clock::now() - t1).count() << "ms" << "\n";
 			
 			if (firstRun) {
 				firstRun = false;
@@ -2433,10 +2434,10 @@ int main(int argc, char *argv[])
 		grx = incGpsTime(grx, 0.1);
 
 		// Update time counter
-		//fprintf(stderr, "\rTime into run = %4.1f", subGpsTime(grx, g0));
-		//fflush(stdout);
+		fprintf(stderr, "\rTime into run = %4.1f", subGpsTime(grx, g0));
+		fflush(stdout);
 
-		std::cout << "Reaching the end took: "<< duration_cast<milliseconds>(high_resolution_clock::now() - t1).count() << "ms" << "\n";
+		//std::cout << "Reaching the end took: "<< duration_cast<milliseconds>(high_resolution_clock::now() - t1).count() << "ms" << "\n";
 
 	}
 
