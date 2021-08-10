@@ -16,7 +16,7 @@
 #include <chrono>
 #include <signal.h>
 #include <uhd.h>
-
+#include <future>  
 
 #define EXECUTE_OR_GOTO(label, ...) \
     if(__VA_ARGS__){ \
@@ -2162,10 +2162,15 @@ int main(int argc, char *argv[])
     uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
 
     // allocate buffer with data to send
-    std::vector<std::complex<int16_t>> buff(
+    std::vector<std::complex<int16_t>> buffA(
+        iq_buff_size, std::complex<int16_t>(0, 0));
+    std::vector<std::complex<int16_t>> buffB(
         iq_buff_size, std::complex<int16_t>(0, 0));
 
+	bool useBuffA = true;
+	bool firstRun = true;
 
+	std::future<size_t> fut;
 
 	signal(SIGINT, &sigint_handler);
 
@@ -2306,40 +2311,62 @@ int main(int argc, char *argv[])
 			// Store I/Q samples into buffer
 			//buff[isamp*2] = (short)i_acc;
 			//buff[isamp*2+1] = (short)c;
-			buff[isamp].real(i_acc);
-			buff[isamp].imag(q_acc);
+			if (useBuffA) {
+				buffA[isamp].real(i_acc);
+				buffA[isamp].imag(q_acc);
+			} else {
+				buffB[isamp].real(i_acc);
+				buffB[isamp].imag(q_acc);
+			}
+
 		}
 
 		fprintf(stderr, "trying to send");
+		useBuffA = !(useBuffA); //Flip buffers
 		// Actual streaming
 		uint64_t num_acc_samps = 0;
 
 		double timeout = md.time_spec.get_real_secs() + 0.1;
 
-		while (num_acc_samps < iq_buff_size) {
-			size_t samps_to_send = std::min(iq_buff_size - num_acc_samps, buff.size());
+		//while (num_acc_samps < iq_buff_size) {
+		//	size_t samps_to_send = std::min(iq_buff_size - num_acc_samps, buffA.size());
 
 			// send a single packet
 			std::cout << "Generating took: "<< duration_cast<milliseconds>(high_resolution_clock::now() - t1).count() << "ms" << "\n";
-				
-			size_t num_tx_samps = tx_stream->send(&buff.front() + num_acc_samps, samps_to_send, md, 0.5);
-			num_acc_samps += num_tx_samps;
-			std::cout << "Sending took: "<< duration_cast<milliseconds>(high_resolution_clock::now() - t1).count() << "ms" << "\n";
 
-			// do not use time spec for subsequent packets
-			md.start_of_burst = false;
-			md.has_time_spec = true;
+			if (!firstRun) {
+				auto num_tx_samps = fut.get();
 
-			std::cout << boost::format("Sent packet: %u samples") % num_tx_samps << "\n";
+				md.start_of_burst = false;
+				md.has_time_spec = true;
+
+				std::cout << boost::format("Sent packet: %u samples") % num_tx_samps << "\n";
+
+				md.time_spec += uhd::time_spec_t(0, 0.1);
+
+				while (md.time_spec < usrp->get_time_now()) {
+					md.time_spec += uhd::time_spec_t(0, 0.1);
+					md.start_of_burst = true;
+				}
 
 			}
 
-		md.time_spec += uhd::time_spec_t(0, 0.1);
+			if (useBuffA) {
+				//Then use buffer B
+				fut = std::async(&uhd::tx_streamer::send, tx_stream, &buffB.front() + num_acc_samps, iq_buff_size, md, 0.5);
+			} else {
+				fut = std::async(&uhd::tx_streamer::send, tx_stream, &buffA.front() + num_acc_samps, iq_buff_size, md, 0.5);
+			}	
+			std::cout << "Sending took: "<< duration_cast<milliseconds>(high_resolution_clock::now() - t1).count() << "ms" << "\n";
+			
+			if (firstRun) {
+				firstRun = false;
+			}
 
-		while (md.time_spec < usrp->get_time_now()) {
-			md.time_spec += uhd::time_spec_t(0, 0.1);
-			md.start_of_burst = true;
-		}
+
+
+		
+
 
 
 	//		num_acc_samps += num_tx_samps;
