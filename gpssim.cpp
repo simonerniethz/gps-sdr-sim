@@ -1675,7 +1675,9 @@ void usage(void)
 		"  -s <frequency>   Sampling frequency [Hz] (default: 4000000)\n"
 		"  -b <iq_bits>     I/Q data format [1/8/16] (default: 16)\n"
 		"  -i               Disable ionospheric delay for spacecraft scenario\n"
-		"  -v               Show details about simulated channels\n",
+		"  -v               Show details about simulated channels\n"
+		"  -q <gain_db>     Set TX Gain of UHD USRP\n"
+		"  -x <uhd_opts>    Set UHD USRP options\n",
 		((double)USER_MOTION_SIZE) / 10.0, STATIC_MAX_DURATION);
 
 	return;
@@ -1752,6 +1754,9 @@ int main(int argc, char *argv[])
 
 	ionoutc_t ionoutc;
 
+	double uhd_tx_gain;
+	char uhd_args[MAX_CHAR];
+
 	////////////////////////////////////////////////////////////
 	// Read options
 	////////////////////////////////////////////////////////////
@@ -1768,25 +1773,28 @@ int main(int argc, char *argv[])
 	verb = FALSE;
 	ionoutc.enable = TRUE;
 
+	uhd_tx_gain = 50.0;
+	strcpy(uhd_args, "");
+
 	if (argc<3)
 	{
 		usage();
 		exit(1);
 	}
 
-	while ((result=getopt(argc,argv,"e:u:g:c:l:o:s:b:T:t:d:iv"))!=-1)
+	while ((result=getopt(argc,argv,"e:u:g:c:l:o:s:b:T:t:d:iv:q:x"))!=-1)
 	{
 		switch (result)
 		{
 		case 'e':
-			strcpy(navfile, optarg);
+			strncpy(navfile, optarg, MAX_CHAR);
 			break;
 		case 'u':
-			strcpy(umfile, optarg);
+			strncpy(umfile, optarg, MAX_CHAR);
 			nmeaGGA = FALSE;
 			break;
 		case 'g':
-			strcpy(umfile, optarg);
+			strncpy(umfile, optarg, MAX_CHAR);
 			nmeaGGA = TRUE;
 			break;
 		case 'c':
@@ -1804,7 +1812,7 @@ int main(int argc, char *argv[])
 			llh2xyz(llh,xyz[0]); // Convert llh to xyz
 			break;
 		case 'o':
-			strcpy(outfile, optarg);
+			strncpy(outfile, optarg, MAX_CHAR);
 			break;
 		case 's':
 			samp_freq = atof(optarg);
@@ -1861,6 +1869,12 @@ int main(int argc, char *argv[])
 			break;
 		case 'v':
 			verb = TRUE;
+			break;
+		case 'q':
+			uhd_tx_gain = atof(optarg);
+			break;
+		case 'x':
+			strncpy(uhd_args, optarg, MAX_CHAR);
 			break;
 		case ':':
 		case '?':
@@ -2134,17 +2148,15 @@ int main(int argc, char *argv[])
 	 *	UHD 
 	 */
 	double freq = 1575420000;
-	double gain_uhd = 50;
-    char* device_args = strdup("");
     size_t channel = 0;
     uint64_t total_num_samps = 0;
 
 	std::string args = "serial=31BADAB";
-	uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(args);
+	uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string(uhd_args));
 
 	std::cout << boost::format("Using Device: %s\n") % usrp->get_pp_string();
 
-
+	usrp->set_tx_gain(uhd_tx_gain);
     // set the tx sample rate
     std::cout << boost::format("Setting TX Rate: %f Msps...") % (samp_freq / 1e6) << std::endl;
     usrp->set_tx_rate(samp_freq);
