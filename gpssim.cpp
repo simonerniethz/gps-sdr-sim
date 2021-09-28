@@ -1764,7 +1764,7 @@ int main(int argc, char *argv[])
 	// Default options
 	navfile[0] = 0;
 	umfile[0] = 0;
-	strcpy(outfile, "gpssim.bin");
+	strncpy(outfile, "gpssim.bin", MAX_CHAR);
 	samp_freq = 2.5e6;
 	data_format = SC16;
 	g0.week = -1; // Invalid start time
@@ -1774,7 +1774,7 @@ int main(int argc, char *argv[])
 	ionoutc.enable = TRUE;
 
 	uhd_tx_gain = 50.0;
-	strcpy(uhd_args, "");
+	strncpy(uhd_args, "clock=gpsdo", MAX_CHAR);
 
 	if (argc<3)
 	{
