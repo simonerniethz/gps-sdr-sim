@@ -72,6 +72,8 @@ The TX port of the USRP is connected to the GPS receiver under test through a DC
 Original Version:
 Copyright &copy; 2015-2018 Takuji Ebinuma  
 Distributed under the [MIT License](http://www.opensource.org/licenses/mit-license.php).
+
+
 This Streaming Version:
 Copyright &copy; Simon Erni
 Distributed under the [MIT License](http://www.opensource.org/licenses/mit-license.php).
