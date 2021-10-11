@@ -42,5 +42,11 @@ gps-sdr-sim-lut
 # Netbeans project folder
 nbproject/*
 
+# CMAKE Build Directory
+build/
+
+# BRDC Files in the top directory
+/brdc*
+
 # Last used USER_MOTION_SIZE variable
 .user-motion-size

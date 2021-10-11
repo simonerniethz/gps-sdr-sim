@@ -18,6 +18,13 @@
 #include <uhd.h>
 #include <future>  
 
+
+#include "spdlog/spdlog.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
+#include "spdlog/sinks/basic_file_sink.h"
+
+using namespace spdlog;
+
 #define EXECUTE_OR_GOTO(label, ...) \
     if(__VA_ARGS__){ \
         return_code = EXIT_FAILURE; \
@@ -1693,6 +1700,9 @@ void sigint_handler(int code){
 int main(int argc, char *argv[])
 {
 
+	auto console = spdlog::stdout_color_mt("console");
+    spdlog::set_default_logger(console);
+
   	uhd_set_thread_priority(0.5F, true);
 
 	clock_t tstart,tend;
@@ -1782,7 +1792,7 @@ int main(int argc, char *argv[])
 		exit(1);
 	}
 
-	while ((result=getopt(argc,argv,"e:u:g:c:l:o:s:b:T:t:d:iv:q:x"))!=-1)
+	while ((result=getopt(argc,argv,"e:u:g:q:x:c:l:o:s:b:T:t:d:i:v"))!=-1)
 	{
 		switch (result)
 		{
