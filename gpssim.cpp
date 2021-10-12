@@ -17,7 +17,7 @@
 #include <signal.h>
 #include <uhd.h>
 #include <future>  
-
+#include <ctime>
 
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
@@ -1782,9 +1782,21 @@ int main(int argc, char *argv[])
 	duration = (double)iduration/10.0; // Default duration
 	verb = FALSE;
 	ionoutc.enable = TRUE;
+	
+	std::time_t t = std::time(0);   // get time now
+    std::tm* now = std::localtime(&t);
+
+	t0.y = now->tm_year + 1900;
+	t0.m = now->tm_mon + 1;
+	t0.d = now->tm_mday;
+	t0.hh = now->tm_hour;
+	t0.mm = now->tm_min;
+	t0.sec = now->tm_sec;
+	date2gps(&t0, &g0);
+
 
 	uhd_tx_gain = 50.0;
-	strncpy(uhd_args, "clock=gpsdo", MAX_CHAR);
+	strncpy(uhd_args, "clock=external", MAX_CHAR);
 
 	if (argc<3)
 	{
@@ -2052,20 +2064,6 @@ int main(int argc, char *argv[])
 				}
 			}
 		}
-		else
-		{
-			if (subGpsTime(g0, gmin)<0.0 || subGpsTime(gmax, g0)<0.0)
-			{
-				fprintf(stderr, "ERROR: Invalid start time.\n");
-				fprintf(stderr, "tmin = %4d/%02d/%02d,%02d:%02d:%02.0f (%d:%.0f)\n", 
-					tmin.y, tmin.m, tmin.d, tmin.hh, tmin.mm, tmin.sec,
-					gmin.week, gmin.sec);
-				fprintf(stderr, "tmax = %4d/%02d/%02d,%02d:%02d:%02.0f (%d:%.0f)\n", 
-					tmax.y, tmax.m, tmax.d, tmax.hh, tmax.mm, tmax.sec,
-					gmax.week, gmax.sec);
-				exit(1);
-			}
-		}
 	}
 	else
 	{
@@ -2101,8 +2099,8 @@ int main(int argc, char *argv[])
 
 	if (ieph == -1)
 	{
-		fprintf(stderr, "ERROR: No current set of ephemerides has been found.\n");
-		exit(1);
+		warn("No current set of ephemerides has been found, using the last ephemerides");
+		ieph = neph -1;
 	}
 
 	////////////////////////////////////////////////////////////
@@ -2161,25 +2159,22 @@ int main(int argc, char *argv[])
     size_t channel = 0;
     uint64_t total_num_samps = 0;
 
-	std::string args = "serial=31BADAB";
 	uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string(uhd_args));
 
-	std::cout << boost::format("Using Device: %s\n") % usrp->get_pp_string();
+	info("Using Device: {}", usrp->get_mboard_name());
 
 	usrp->set_tx_gain(uhd_tx_gain);
+	info("Set USRP TX gain to {} dB", uhd_tx_gain);
     // set the tx sample rate
-    std::cout << boost::format("Setting TX Rate: %f Msps...") % (samp_freq / 1e6) << std::endl;
     usrp->set_tx_rate(samp_freq);
-    std::cout << boost::format("Actual TX Rate: %f Msps...") % (usrp->get_tx_rate() / 1e6)
-              << std::endl
-              << std::endl;
+	info("Set USRP TX Rate: {} Msps, requested {} Msps", (usrp->get_tx_rate() / 1e6), (samp_freq / 1e6));
 
-	usrp->set_tx_gain(20);
-
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+	//TODO: Do we need this?
     usrp->set_time_now(uhd::time_spec_t(0.0));
+	info("Set USRP time to 0");
 
 	usrp->set_tx_freq(uhd::tune_request_t(freq));
+	info("Set USRP TX Frequency of CH0 to {} MHz", usrp->get_tx_freq(0));
 
     // create a transmit streamer
     uhd::stream_args_t stream_args("sc16", "sc16"); // complex int 16
