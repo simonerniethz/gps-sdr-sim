@@ -23,7 +23,11 @@
 #include "spdlog/sinks/stdout_color_sinks.h"
 #include "spdlog/sinks/basic_file_sink.h"
 
+#include <boost/program_options.hpp>
+
 using namespace spdlog;
+namespace po = boost::program_options;
+using namespace std;
 
 #define EXECUTE_OR_GOTO(label, ...) \
     if(__VA_ARGS__){ \
@@ -1701,7 +1705,8 @@ int main(int argc, char *argv[])
 {
 
 	auto console = spdlog::stdout_color_mt("console");
-    spdlog::set_default_logger(console);
+    spdlog::set_default_logger(console);	
+	
 
   	uhd_set_thread_priority(0.5F, true);
 
@@ -1730,14 +1735,14 @@ int main(int argc, char *argv[])
 
 	int iumd;
 	int numd;
-	char umfile[MAX_CHAR];
+	string umfile;
 	double xyz[USER_MOTION_SIZE][3];
 
 	int staticLocationMode = FALSE;
 	int nmeaGGA = FALSE;
 
-	char navfile[MAX_CHAR];
-	char outfile[MAX_CHAR];
+	string navfile;
+	string outfile;
 
 	double samp_freq;
 	int iq_buff_size;
@@ -1765,21 +1770,45 @@ int main(int argc, char *argv[])
 	ionoutc_t ionoutc;
 
 	double uhd_tx_gain;
-	char uhd_args[MAX_CHAR];
+	string uhd_args;
 
 	////////////////////////////////////////////////////////////
 	// Read options
 	////////////////////////////////////////////////////////////
 
+
+	po::options_description desc("Allowed options");
+
+	  desc.add_options()
+      ("help", "produce help message")
+	  ("outfile,o",po::value<string>(&outfile)->default_value("gpssim.bin"), "I/Q sampling data file")
+	  ("rinex,e", "RINEX navigation file for GPS ephemerides (required)")
+	  ("user-motion", po::value<string>(&umfile), "User motion file (dynamic mode)")
+	  ("ecef,c","ECEF X,Y,Z in meters (static mode) e.g. 3967283.154,1022538.181,4872414.484")
+	  ("loc,l","Lat,Lon,Hgt (static mode) e.g. 35.681298,139.766247,10.0")
+	  ("starttime,t","Scenario start time YYYY/MM/DD,hh:mm:ss")
+	  ("toe,T","Overwrite TOC and TOE to scenario start time")
+	  ("samp-freq,s", po::value<double>(&samp_freq)->default_value(2.5e6), "Sampling frequency [Hz]")
+	  ("ion-delay,i","Disable ionospheric delay for spacecraft scenario")
+	  ("verbose,v","Show details about simulated channels")
+	  ("tx-gain,g", po::value<double>(&uhd_tx_gain)->default_value(50), "Set TX Gain of UHD USRP in dB")
+	  ("uhd-args", po::value<string>(&uhd_args)->default_value(""), "UHD USRP arguments");
+	
+	po::variables_map vm;
+  	po::store(po::parse_command_line(argc, argv, desc), vm);
+	if (vm.count("help")) {
+		std::cout << desc << "\n";
+		return 1;
+	}
+  	po::notify(vm);
+
+
+	if (vm.count("rinex"))
+
+
 	// Default options
-	navfile[0] = 0;
-	umfile[0] = 0;
-	strncpy(outfile, "gpssim.bin", MAX_CHAR);
-	samp_freq = 2.5e6;
 	data_format = SC16;
 	g0.week = -1; // Invalid start time
-	iduration = USER_MOTION_SIZE;
-	duration = (double)iduration/10.0; // Default duration
 	verb = FALSE;
 	ionoutc.enable = TRUE;
 	
@@ -1882,9 +1911,6 @@ int main(int argc, char *argv[])
 			}
 			t0.sec = floor(t0.sec);
 			date2gps(&t0, &g0);
-			break;
-		case 'd':
-			duration = atof(optarg);
 			break;
 		case 'i':
 			ionoutc.enable = FALSE; // Disable ionospheric correction
