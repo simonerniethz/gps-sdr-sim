@@ -2341,11 +2341,11 @@ int main(int argc, char *argv[])
 			break;
 			case 3:
 				//Down
-				xyz[0][0]--;
+				xyz[0][0]++;
 			break;
 			case 4:
 				//Left
-				xyz[0][1]++;
+				xyz[0][1]--;
 			break;
 		}
 		info("Position: {} {} {}", xyz[0][0], xyz[0][1], xyz[0][2]);
