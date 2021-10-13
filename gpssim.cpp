@@ -2157,6 +2157,10 @@ int main(int argc, char *argv[])
 		exit(-1);
 	}
 
+	auto control = zmq_socket(zmq_ctx, ZMQ_REQ);
+    zmq_connect(control, "tcp://localhost:5550");
+	info("Connected with Control on Port 5550");
+
     // allocate buffer with data to send
     std::vector<std::complex<float>> buffA(
         iq_buff_size, std::complex<float>(0, 0));
@@ -2314,12 +2318,37 @@ int main(int argc, char *argv[])
 		
 		uint32_t req;
 		zmq_recv(zmq_server, &req, sizeof(uint32_t), 0);
+		zmq_send(control, &req, sizeof(uint32_t), 0);
+		zmq_recv(control, &req, sizeof(uint32_t), 0);
+
 		if (useBuffA) {
 			//Then use buffer B
 			fut = std::async(zmq_send, zmq_server, &buffB.front(), buffB.size() * sizeof(std::complex<float>), 0);
 		} else {
 			fut = std::async(zmq_send, zmq_server, &buffA.front(), buffA.size() * sizeof(std::complex<float>), 0);
 		}
+
+		switch(req) {
+			case 0:
+			break;
+			case 1:
+				//Up
+				xyz[0][0]--;
+			break;
+			case 2:
+				//Right
+				xyz[0][1]++;
+			break;
+			case 3:
+				//Down
+				xyz[0][0]--;
+			break;
+			case 4:
+				//Left
+				xyz[0][1]++;
+			break;
+		}
+		info("Position: {} {} {}", xyz[0][0], xyz[0][1], xyz[0][2]);
 		//
 		// Update navigation message and channel allocation every 30 seconds
 		//
