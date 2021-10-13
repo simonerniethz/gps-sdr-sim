@@ -2390,17 +2390,12 @@ int main(int argc, char *argv[])
 
 	tend = clock();
 
-	info("Done!");
+	info("Exiting Real-Time Generation!");
 
 
 	// Close file
 	fclose(fp);
 
-	// Process time
-	info("Process time = {} [sec]", (double)(tend-tstart)/CLOCKS_PER_SEC);
-
 	zmq_ctx_shutdown(zmq_ctx);
-	zmq_ctx_term(zmq_ctx);
-
 	return(0);
 }
