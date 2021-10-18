@@ -2152,6 +2152,7 @@ int main(int argc, char *argv[])
 	auto zmq_ctx = zmq_ctx_new();
 	auto zmq_server = zmq_socket(zmq_ctx, ZMQ_REP);
 	int rc = zmq_bind(zmq_server, "tcp://*:5555");
+	info("Listening on Sample Port 5555");
 	if (rc != 0) {
 		error("Could not bind ZeroMQ socket to port 5555");
 		exit(-1);
@@ -2159,7 +2160,7 @@ int main(int argc, char *argv[])
 
 	auto control = zmq_socket(zmq_ctx, ZMQ_REQ);
     zmq_connect(control, "tcp://localhost:5550");
-	info("Connected with Control on Port 5550");
+	info("Listening on Control Port 5550");
 
     // allocate buffer with data to send
     std::vector<std::complex<float>> buffA(
