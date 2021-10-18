@@ -1913,11 +1913,13 @@ int main(int argc, char *argv[])
 
 	if (umfile[0]==0 && !staticLocationMode)
 	{
+		info("Using default location");
 		// Default static location; Zurich
 		staticLocationMode = TRUE;
 		llh[0] = 47.37777 / R2D;
 		llh[1] = 8.549334 / R2D;
 		llh[2] = 548.0;
+		llh2xyz(llh,xyz[0]); // Convert llh to xyz
 	}
 
 	if (duration<0.0 || (duration>((double)USER_MOTION_SIZE)/10.0 && !staticLocationMode) || (duration>STATIC_MAX_DURATION && staticLocationMode))
