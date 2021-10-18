@@ -2332,33 +2332,36 @@ int main(int argc, char *argv[])
 			fut = std::async(zmq_send, zmq_server, &buffA.front(), buffA.size() * sizeof(std::complex<float>), 0);
 		}
 
-		xyz2llh(xyz[0], llh);
 
-		switch(req) {
-			case 0:
-			break;
-			case 1:
-				//Up
-				llh[0] += 0.00001 / R2D ;
-			break;
-			case 2:
-				//Right
-				llh[1] += 0.00001 / R2D ;
-			break;
-			case 3:
-				//Down
-				llh[0] -= 0.00001 / R2D ;
-			break;
-			case 4:
-				//Left
-				llh[1] -= 0.00001 / R2D ;
-			break;
+		if (req != 0) {
+			xyz2llh(xyz[0], llh);
 
+			switch(req) {
+				case 0:
+				break;
+				case 1:
+					//Up
+					llh[0] += 0.00001 / R2D ;
+				break;
+				case 2:
+					//Right
+					llh[1] += 0.00001 / R2D ;
+				break;
+				case 3:
+					//Down
+					llh[0] -= 0.00001 / R2D ;
+				break;
+				case 4:
+					//Left
+					llh[1] -= 0.00001 / R2D ;
+				break;
 
+			}
+
+			llh2xyz(llh, xyz[0]);
+			info("Position: {},{},h:{}", llh[0]*R2D, llh[1]*R2D, llh[2]);
 		}
-		llh2xyz(llh, xyz[0]);
-		info("Position: {},{},h:{}", llh[0]*R2D, llh[1]*R2D, llh[2]);
-
+	
 		//
 		// Update navigation message and channel allocation every 30 seconds
 		//
