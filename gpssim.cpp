@@ -1915,8 +1915,8 @@ int main(int argc, char *argv[])
 	{
 		// Default static location; Zurich
 		staticLocationMode = TRUE;
-		llh[0] = 8.549334 / R2D;
-		llh[1] = 47.37777 / R2D;
+		llh[0] = 47.37777 / R2D;
+		llh[1] = 8.549334 / R2D;
 		llh[2] = 548.0;
 	}
 
