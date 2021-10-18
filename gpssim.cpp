@@ -1828,6 +1828,7 @@ int main(int argc, char *argv[])
 			sscanf(optarg,"%lf,%lf,%lf",&llh[0],&llh[1],&llh[2]);
 			llh[0] = llh[0] / R2D; // convert to RAD
 			llh[1] = llh[1] / R2D; // convert to RAD
+			llh[2] = 548.0;
 			llh2xyz(llh,xyz[0]); // Convert llh to xyz
 			break;
 		case 'o':
@@ -1912,11 +1913,11 @@ int main(int argc, char *argv[])
 
 	if (umfile[0]==0 && !staticLocationMode)
 	{
-		// Default static location; Tokyo
+		// Default static location; Zurich
 		staticLocationMode = TRUE;
-		llh[0] = 35.681298 / R2D;
-		llh[1] = 139.766247 / R2D;
-		llh[2] = 10.0;
+		llh[0] = 8.549334 / R2D;
+		llh[1] = 47.37777 / R2D;
+		llh[2] = 548.0;
 	}
 
 	if (duration<0.0 || (duration>((double)USER_MOTION_SIZE)/10.0 && !staticLocationMode) || (duration>STATIC_MAX_DURATION && staticLocationMode))
