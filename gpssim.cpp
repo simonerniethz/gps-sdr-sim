@@ -2357,8 +2357,7 @@ int main(int argc, char *argv[])
 
 		}
 		llh2xyz(llh, xyz[0]);
-
-		info("Position: {},{},h:", llh[0], llh[1], llh[2]);
+		info("Position: {},{},h:{}", llh[0]*R2D, llh[1]*R2D, llh[2]);
 
 		//
 		// Update navigation message and channel allocation every 30 seconds
