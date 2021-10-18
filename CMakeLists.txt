@@ -25,6 +25,6 @@ endif ()
 add_executable(gps-sdr-sim gpssim.cpp gpssim.h)
 target_link_libraries(gps-sdr-sim
     pthread
-    uhd
+    zmq
     spdlog::spdlog
 )

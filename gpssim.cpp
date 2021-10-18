@@ -12,12 +12,11 @@
 #endif
 #include "gpssim.h"
 #include <complex>
-#include <uhd/usrp/multi_usrp.hpp>
 #include <chrono>
 #include <signal.h>
-#include <uhd.h>
 #include <future>  
 #include <ctime>
+#include <zmq.h>
 
 #include "spdlog/spdlog.h"
 #include "spdlog/sinks/stdout_color_sinks.h"
@@ -1703,8 +1702,6 @@ int main(int argc, char *argv[])
 	auto console = spdlog::stdout_color_mt("console");
     spdlog::set_default_logger(console);
 
-  	uhd_set_thread_priority(0.5F, true);
-
 	clock_t tstart,tend;
 
 	FILE *fp;
@@ -1784,7 +1781,7 @@ int main(int argc, char *argv[])
 	ionoutc.enable = TRUE;
 	
 	std::time_t t = std::time(0);   // get time now
-    std::tm* now = std::localtime(&t);
+    std::tm* now = std::gmtime(&t);
 
 	t0.y = now->tm_year + 1900;
 	t0.m = now->tm_mon + 1;
@@ -2152,44 +2149,28 @@ int main(int argc, char *argv[])
 	for (i=0; i<37; i++)
 		ant_pat[i] = pow(10.0, -ant_pat_db[i]/20.0);
 
-	/**
-	 *	UHD 
-	 */
-	double freq = 1575420000;
-    size_t channel = 0;
-    uint64_t total_num_samps = 0;
+	auto zmq_ctx = zmq_ctx_new();
+	auto zmq_server = zmq_socket(zmq_ctx, ZMQ_REP);
+	int rc = zmq_bind(zmq_server, "tcp://*:5555");
+	if (rc != 0) {
+		error("Could not bind ZeroMQ socket to port 5555");
+		exit(-1);
+	}
 
-	uhd::usrp::multi_usrp::sptr usrp = uhd::usrp::multi_usrp::make(std::string(uhd_args));
-
-	info("Using Device: {}", usrp->get_mboard_name());
-
-	usrp->set_tx_gain(uhd_tx_gain);
-	info("Set USRP TX gain to {} dB", uhd_tx_gain);
-    // set the tx sample rate
-    usrp->set_tx_rate(samp_freq);
-	info("Set USRP TX Rate: {} Msps, requested {} Msps", (usrp->get_tx_rate() / 1e6), (samp_freq / 1e6));
-
-	//TODO: Do we need this?
-    usrp->set_time_now(uhd::time_spec_t(0.0));
-	info("Set USRP time to 0");
-
-	usrp->set_tx_freq(uhd::tune_request_t(freq));
-	info("Set USRP TX Frequency of CH0 to {} MHz", usrp->get_tx_freq(0));
-
-    // create a transmit streamer
-    uhd::stream_args_t stream_args("sc16", "sc16"); // complex int 16
-    uhd::tx_streamer::sptr tx_stream = usrp->get_tx_stream(stream_args);
+	auto control = zmq_socket(zmq_ctx, ZMQ_REQ);
+    zmq_connect(control, "tcp://localhost:5550");
+	info("Connected with Control on Port 5550");
 
     // allocate buffer with data to send
-    std::vector<std::complex<int16_t>> buffA(
-        iq_buff_size, std::complex<int16_t>(0, 0));
-    std::vector<std::complex<int16_t>> buffB(
-        iq_buff_size, std::complex<int16_t>(0, 0));
+    std::vector<std::complex<float>> buffA(
+        iq_buff_size, std::complex<float>(0, 0));
+    std::vector<std::complex<float>> buffB(
+        iq_buff_size, std::complex<float>(0, 0));
 
 	bool useBuffA = true;
 	bool firstRun = true;
 
-	std::future<size_t> fut;
+	std::future<int> fut;
 
 	signal(SIGINT, &sigint_handler);
 
@@ -2201,13 +2182,6 @@ int main(int argc, char *argv[])
 
 	// Update receiver time
 	grx = incGpsTime(grx, 0.1);
-
-	// setup metadata for the first packet
-	uhd::tx_metadata_t md;
-	md.start_of_burst = true;
-	md.end_of_burst   = false;
-	md.has_time_spec  = true;
-	md.time_spec      = usrp->get_time_now() + uhd::time_spec_t(0, 0.1); //Start transmitting 0.1s in the future
 
 	while(1)
 	{
@@ -2341,55 +2315,40 @@ int main(int argc, char *argv[])
 		}
 
 		useBuffA = !(useBuffA); //Flip buffers
-		// Actual streaming
-		uint64_t num_acc_samps = 0;
-
-		double timeout = md.time_spec.get_real_secs() + 0.1;
-
-		//while (num_acc_samps < iq_buff_size) {
-		//	size_t samps_to_send = std::min(iq_buff_size - num_acc_samps, buffA.size());
-
-			// send a single packet
-			//std::cout << "Generating took: "<< duration_cast<milliseconds>(high_resolution_clock::now() - t1).count() << "ms" << "\n";
-
-			if (!firstRun) {
-				auto num_tx_samps = fut.get();
-
-				md.start_of_burst = false;
-				md.has_time_spec = true;
-
-				//std::cout << boost::format("Sent packet: %u samples") % num_tx_samps << "\n";
-
-				md.time_spec += uhd::time_spec_t(0, 0.1);
-
-				while (md.time_spec < usrp->get_time_now()) {
-					md.time_spec += uhd::time_spec_t(0, 0.1);
-					md.start_of_burst = true;
-				}
-
-			}
-
-			if (useBuffA) {
-				//Then use buffer B
-				fut = std::async(&uhd::tx_streamer::send, tx_stream, &buffB.front() + num_acc_samps, iq_buff_size, md, 0.5);
-			} else {
-				fut = std::async(&uhd::tx_streamer::send, tx_stream, &buffA.front() + num_acc_samps, iq_buff_size, md, 0.5);
-			}	
-			//std::cout << "Sending took: "<< duration_cast<milliseconds>(high_resolution_clock::now() - t1).count() << "ms" << "\n";
-			
-			if (firstRun) {
-				firstRun = false;
-			}
-
-
-
 		
+		uint32_t req;
+		zmq_recv(zmq_server, &req, sizeof(uint32_t), 0);
+		zmq_send(control, &req, sizeof(uint32_t), 0);
+		zmq_recv(control, &req, sizeof(uint32_t), 0);
 
+		if (useBuffA) {
+			//Then use buffer B
+			fut = std::async(zmq_send, zmq_server, &buffB.front(), buffB.size() * sizeof(std::complex<float>), 0);
+		} else {
+			fut = std::async(zmq_send, zmq_server, &buffA.front(), buffA.size() * sizeof(std::complex<float>), 0);
+		}
 
-
-	//		num_acc_samps += num_tx_samps;
-//		}
-
+		switch(req) {
+			case 0:
+			break;
+			case 1:
+				//Up
+				xyz[0][0]--;
+			break;
+			case 2:
+				//Right
+				xyz[0][1]++;
+			break;
+			case 3:
+				//Down
+				xyz[0][0]++;
+			break;
+			case 4:
+				//Left
+				xyz[0][1]--;
+			break;
+		}
+		info("Position: {} {} {}", xyz[0][0], xyz[0][1], xyz[0][2]);
 		//
 		// Update navigation message and channel allocation every 30 seconds
 		//
@@ -2460,14 +2419,12 @@ int main(int argc, char *argv[])
 
 	tend = clock();
 
-	fprintf(stderr, "\nDone!\n");
+	info("Exiting Real-Time Generation!");
 
 
 	// Close file
 	fclose(fp);
 
-	// Process time
-	fprintf(stderr, "Process time = %.1f [sec]\n", (double)(tend-tstart)/CLOCKS_PER_SEC);
-
+	zmq_ctx_shutdown(zmq_ctx);
 	return(0);
 }
