@@ -28,3 +28,4 @@ target_link_libraries(gps-sdr-sim
     zmq
     spdlog::spdlog
 )
+install(TARGETS gps-sdr-sim)
